@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "pydirectus"
+version = "0.1.0"
+description = "Python SDK for Directus"
+authors = ["Elie Bursztein <github@elie.net>"]
+license = "Apache 2.0"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+httpx = "^0.27.2"
+python-dotenv = "^1.0.1"
+rich = "^13.8.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.2"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
