@@ -55,8 +55,14 @@ class Directus():
             names.append(cname)
         return names
 
+    def collection_exist(self, name: str) -> bool:
+        "Check if a collection exists"
+        return name in self.collection_names()
 
     def collection(self, collection: str) -> Collection:
         "Get a collection"
         return Collection(collection, self._session)
 
+    def get_raw_endpoint(self, endpoint: str) -> Any:
+        "Get the raw data from an endpoint for debugging purposes"
+        return self._session.get(endpoint).data

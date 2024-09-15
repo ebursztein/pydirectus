@@ -1,27 +1,36 @@
+import json
+import logging
 from rich.table import Table
 from rich.console import Console
 from .session import Session
-from .typing import Alias, Other
+from .typing import Alias, Other, Csv, Hash, Uuid, Json, Union, List
+from .query import Query, FilterBuilder, LogicalOperator, _FilterBuilderWithOperators
 
 class Field():
     "Directus field object"
-
     # from https://docs.directus.io/user-guide/overview/glossary.html#types
     TYPE_MAP = {
-        'alias': Alias,   # that's when it point to another table
-
+        'alias': Alias,   # that's when it points to another table
         'integer': int,
         'bigint': int,
         'string': str,
         'text': str,
         'character varying': str,
-
         'boolean': bool,
-
         'float': float,
         'decimal': float,
+        'binary': bytes,
+        'timestamp': int,
+        'datetime': int,
+        'date': str,
+        'time': str,
+        'json': Json,
+        'csv': Csv,
+        'uuid': Uuid,
+        'hash': Hash,
     }
 
+    name: str
     type: str
     pytype: Other
     is_indexed: bool = False
@@ -29,7 +38,7 @@ class Field():
     is_nullable: bool = False
     is_primary_key: bool = False
     has_auto_increment: bool = False
-
+    max_length: int = 0
 
     def __init__(self, data: dict) -> None:
         if not data:
@@ -37,7 +46,7 @@ class Field():
         self.name = data['field']
         self.type = data['type']
         # casting type to python type for hint and type checking
-        self.pytype = self.TYPE_MAP.get(data['type'], Other)
+        self.pytype = self.TYPE_MAP.get(data['type'].lower(), Other)
 
         # field keys properties -- wed on't part everthing
         if data.get('schema'):
@@ -46,9 +55,10 @@ class Field():
             self.is_nullable = data['schema'].get('is_nullable', False)
             self.is_primary_key = data['schema'].get('is_primary_key')
             self.has_auto_increment = data['schema'].get('has_auto_increment')
-
+            self.max_length = data['schema'].get('max_length', 0)
         if data.get('meta'):
             self.is_required = data['meta'].get('required', False)
+
 
 
 class Collection():
@@ -59,7 +69,6 @@ class Collection():
     the api don't seems to return the `fields` key in the response so we
     fetch them separately in the constructor.
     """
-
 
 
     def __init__(self, name: str, session: Session) -> None:
@@ -91,13 +100,22 @@ class Collection():
         # get fields
         fdata = self._session.get(f"fields/{name}")
         if not fdata.ok:
+            logging.error(f"Error fetching fields for collection {name}")
             return
 
-        fields = []
+        fields = {}
         for f in fdata.data:
-            fields.append(Field(f))
+            fld = Field(f)
+            fields[fld.name] = fld
         self.fields = fields
 
+        # query
+        self.query: Query = Query(self.name, ['*'])
+
+    def __repr__(self) -> str:
+        return f"<Collection {self.name}>"
+
+    # [Fields](https://docs.directus.io/reference/system/fields.html)
     def display_fields(self) -> None:
         console = Console()
         table = Table(title=f"{self.name} Fields", row_styles=['dim', ''])
@@ -111,8 +129,9 @@ class Collection():
         table.add_column("Primary Key", style="green")
         table.add_column("Auto Increment", style="green")
         table.add_column("Required", style="green")
+        table.add_column("Max Length", style="green")
 
-        for field in self.fields:
+        for field in self.fields.values():
             table.add_row(
                 field.name,
                 field.type,
@@ -123,9 +142,83 @@ class Collection():
                 "✔" if field.is_primary_key else " ",
                 "✔" if field.has_auto_increment else " ",
                 "✔" if field.is_required else " ",
+                str(field.max_length)
             )
         console.print(table)
 
+    def get_field(self, name: str) -> Field:
+        "Get a field by name"
+        if name not in self.fields:
+            logging.error(f"Field {name} not found in collection {self.name}")
+            return None
+        return self.fields.get(name)
 
-    def __repr__(self) -> str:
-        return f"<Collection {self.name}>"
+    def field_names(self) -> list[str]:
+        "Get all fields names"
+        return list(self.fields.keys())
+
+    def field_exists(self, name: str) -> bool:
+        "Check if a field exists in the collection"
+        return name in self.fields
+
+   # query builder
+    def filter(self, field: str) -> _FilterBuilderWithOperators:
+        """Starts building a filter rule for the given field.
+
+        Args:
+            field: The name of the field to filter on.
+
+        Returns:
+            A FilterBuilder object for chaining filter operations.
+        """
+
+        assert field in self.fields, f"Field {field} not found in collection {self.name}"
+        return self.query.filter(field)
+
+    def and_(self, *conditions: Union[FilterBuilder, "LogicalOperator"]) -> LogicalOperator:
+        """Starts building a logical AND condition.
+
+        Returns:
+            A LogicalOperator object for chaining filter conditions.
+        """
+        return self.query.and_(*conditions)
+
+    def or_(self, *conditions: Union[FilterBuilder, "LogicalOperator"]) -> LogicalOperator:
+        """Starts building a logical OR condition.
+
+        Returns:
+            A LogicalOperator object for chaining filter conditions.
+        """
+        return self.query.or_(*conditions)
+
+    def select(self, fields: List[str] | str = '*') -> "Collection":
+        """Specifies the fields to be selected in the query.
+
+        Args:
+            fields: A list of field names to select.
+
+        Returns:
+            The Collection object for chaining.
+        """
+        if not isinstance(fields, list):
+            fields = [fields]
+        if not fields == ['*']:
+            for field in fields:
+                if field not in self.fields:
+                    raise ValueError(f"Field {field} not found in collection {self.name}")
+        # new query
+        self.query = Query(self.name, selected_fields=fields)
+        return self
+
+    def search(self) -> str:
+        """Executes the query (placeholder for actual data source interaction).
+
+        Returns:
+            The result of the query (in this example, a JSON string).
+        """
+        # self.query = Query()  # reset after searching
+        raise NotImplementedError("This method should be overridden by a subclass")
+
+    def explain(self) -> None:
+        """Prints a colorized and formatted SQL-like explanation of the query using Rich."""
+        self.query.explain()

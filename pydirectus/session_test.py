@@ -1,4 +1,4 @@
-from .session import Session
+from pydirectus.session import Session
 from pytest import raises
 
 def test_invalid_token():
