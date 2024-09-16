@@ -166,9 +166,3 @@ clt.delete(idxs)
 You can easily add more data to the test by using `utils/test_data_dumper.py` which interface with your directus instance to dump the raw responses. The tests should be able to pickup all the dumpped responses.
 
 During testing we mock the `Session` object to respond with those dumps to ensure consistency and avoid network requests.
-
-
-
-## TODO
-- Settings: https://github.com/panos-stavrianos/py-directus/blob/master/py_directus/directus.py
-- settings / translation / files
