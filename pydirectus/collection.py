@@ -3,62 +3,9 @@ import logging
 from rich.table import Table
 from rich.console import Console
 from .session import Session
-from .typing import Alias, Other, Csv, Hash, Uuid, Json, Union, List
+from .field import Field
+from .typing import Union, List, Optional, Any
 from .query import Query, FilterBuilder, LogicalOperator, _FilterBuilderWithOperators
-
-class Field():
-    "Directus field object"
-    # from https://docs.directus.io/user-guide/overview/glossary.html#types
-    TYPE_MAP = {
-        'alias': Alias,   # that's when it points to another table
-        'integer': int,
-        'bigint': int,
-        'string': str,
-        'text': str,
-        'character varying': str,
-        'boolean': bool,
-        'float': float,
-        'decimal': float,
-        'binary': bytes,
-        'timestamp': int,
-        'datetime': int,
-        'date': str,
-        'time': str,
-        'json': Json,
-        'csv': Csv,
-        'uuid': Uuid,
-        'hash': Hash,
-    }
-
-    name: str
-    type: str
-    pytype: Other
-    is_indexed: bool = False
-    is_unique: bool = False
-    is_nullable: bool = False
-    is_primary_key: bool = False
-    has_auto_increment: bool = False
-    max_length: int = 0
-
-    def __init__(self, data: dict) -> None:
-        if not data:
-            raise ValueError("Field data is empty")
-        self.name = data['field']
-        self.type = data['type']
-        # casting type to python type for hint and type checking
-        self.pytype = self.TYPE_MAP.get(data['type'].lower(), Other)
-
-        # field keys properties -- wed on't part everthing
-        if data.get('schema'):
-            self.is_indexed = data['schema'].get('is_indexed', False)
-            self.is_unique = data['schema'].get('is_unique', False)
-            self.is_nullable = data['schema'].get('is_nullable', False)
-            self.is_primary_key = data['schema'].get('is_primary_key')
-            self.has_auto_increment = data['schema'].get('has_auto_increment')
-            self.max_length = data['schema'].get('max_length', 0)
-        if data.get('meta'):
-            self.is_required = data['meta'].get('required', False)
-
 
 
 class Collection():
@@ -78,6 +25,9 @@ class Collection():
 
         # get metadata
         meta = self._session.get(f"collections/{name}")
+        if not meta.ok:
+            raise ValueError(f"Error fetching collection {name}")
+
         self.icon = meta.data['meta']['icon']
         self.display_template = meta.data['meta']['display_template']
         self.hidden: bool = meta.data['meta']['hidden']
@@ -109,8 +59,6 @@ class Collection():
             fields[fld.name] = fld
         self.fields = fields
 
-        # query
-        self.query: Query = Query(self.name, ['*'])
 
     def __repr__(self) -> str:
         return f"<Collection {self.name}>"
@@ -161,64 +109,126 @@ class Collection():
         "Check if a field exists in the collection"
         return name in self.fields
 
-   # query builder
-    def filter(self, field: str) -> _FilterBuilderWithOperators:
-        """Starts building a filter rule for the given field.
 
-        Args:
-            field: The name of the field to filter on.
-
-        Returns:
-            A FilterBuilder object for chaining filter operations.
-        """
-
-        assert field in self.fields, f"Field {field} not found in collection {self.name}"
-        return self.query.filter(field)
-
-    def and_(self, *conditions: Union[FilterBuilder, "LogicalOperator"]) -> LogicalOperator:
-        """Starts building a logical AND condition.
-
-        Returns:
-            A LogicalOperator object for chaining filter conditions.
-        """
-        return self.query.and_(*conditions)
-
-    def or_(self, *conditions: Union[FilterBuilder, "LogicalOperator"]) -> LogicalOperator:
-        """Starts building a logical OR condition.
-
-        Returns:
-            A LogicalOperator object for chaining filter conditions.
-        """
-        return self.query.or_(*conditions)
-
-    def select(self, fields: List[str] | str = '*') -> "Collection":
-        """Specifies the fields to be selected in the query.
-
+    def query(self, fields: List[str] | str = '*') -> Query:
+        """run a query object to select fields and filter results.
         Args:
             fields: A list of field names to select.
 
         Returns:
-            The Collection object for chaining.
-        """
-        if not isinstance(fields, list):
-            fields = [fields]
-        if not fields == ['*']:
-            for field in fields:
-                if field not in self.fields:
-                    raise ValueError(f"Field {field} not found in collection {self.name}")
-        # new query
-        self.query = Query(self.name, selected_fields=fields)
-        return self
+            The Query object for chaining.
 
-    def search(self) -> str:
-        """Executes the query (placeholder for actual data source interaction).
+        Notes:
+        The query object is independent of the collection object because you
+        can have multiple queries on the same collection object that you want
+        to reuse and having the collection stateless is useful for parallelization.
+
+        """
+        return Query(endpoint='items',
+                     name=self.name,
+                     selected_fields=fields,
+                     all_fields=self.fields,
+                     session=self._session)
+
+    def get(self, id: int) -> dict:
+        """Get a single record by id.
+
+        Args:
+            id: The record id to fetch.
 
         Returns:
-            The result of the query (in this example, a JSON string).
+            The record data as a dictionary.
         """
-        # self.query = Query()  # reset after searching
-        raise NotImplementedError("This method should be overridden by a subclass")
+        resp = self._session.get(f"items/{self.name}/{id}")
+        if not resp.ok:
+            logging.error(f"Error fetching item {id}: {resp.error_message}")
+            return None
+        return resp.data
 
-    def explain(self) -> None:
-        """Prints a colorized and formatted SQL-like explanation of the query using Rich."""
-        self.query.explain()
+    def delete(self, ids: int | list[int]) -> None:
+        """Delete record(s) in the collection.
+
+        Args:
+            ids: A single record id or a list of record ids to delete.
+        Returns:
+            None
+        """
+        if isinstance(ids, int):
+            ids = [ids]
+        payload = {"keys": ids}
+        resp = self._session.delete(f"items/{self.name}", payload)
+        if not resp.ok:
+            logging.error(f"Error deleting items: {resp.error_message}")
+
+
+    def insert(self,
+               items: list[dict[str, Any]] | dict[str, Any]) -> list[dict] | dict:
+        """Insert record(s) in the collection.
+
+        Args:
+            items: A single record or a list of records to insert as dictionaries.
+        Returns:
+            The inserted record(s).
+        """
+        # box single item in a list
+        if isinstance(items, dict):
+            items = [items]
+
+        # check fields:
+        for idx, item in enumerate(items):
+            try:
+                self._validate_item(item)
+            except ValueError as e:
+                logging.error(f"Error validating item {idx}: {e}")
+                return None
+
+        resp = self._session.post(f"items/{self.name}", items)
+        if not resp.ok:
+            logging.error(f"Error inserting items: {resp.error_message}")
+            return None
+        return resp.data
+
+    def update(self, ids: int | list[int], items: dict[str, Any]) -> dict:
+        if isinstance(ids, int):
+            ids = [ids]
+            items = [items]
+        if len(ids) != len(items):
+            raise ValueError("ids and data must have the same length")
+
+        # validate items
+        for idx, item in enumerate(items):
+
+            try:
+                self._validate_item(item)
+            except ValueError as e:
+                logging.error(f"Error validating item {ids[idx]}: {e}")
+                return None
+
+        # There seems no way to update items with different values so we loop
+        # https://docs.directus.io/reference/items.html#update-an-item
+        # we do after all validation to avoid partial updates
+        data = []
+        errors = []
+        for idx, item in enumerate(items):
+            resp = self._session.patch(f"items/{self.name}/{ids[idx]}", item)
+            if not resp.ok:
+                logging.error(f"Error updating item {ids[idx]}: {resp.error_message}")
+                data.append(None)
+                errors.append(f"{ids[idx]}: {resp.error_message}\n")
+            data.append(resp.data)
+        if len(errors) > 0:
+            print(f"Update partially failed with {len(errors)} errors:\n{errors}")
+        return data
+
+    def _validate_item(self, data: dict):
+        "check if the item data is valid based of the collection fields structure"
+        for field, value in data.items():
+            if field not in self.fields:
+                raise ValueError(f"Field {field} not found in collection {self.name}")
+            field_def = self.fields[field]
+            if not field_def.is_nullable and value is None:
+                raise ValueError(f"Field {field} can't be null")
+            if field_def.max_length and len(str(value)) > field_def.max_length:
+                raise ValueError(f"Field {field} max length is {field_def.max_length}")
+            if field_def.pytype != type(value):
+                raise ValueError(f"Field {field} type is {field_def.pytype} but got {type(value)}")

@@ -1,4 +1,4 @@
-from typing import TypeAlias, List, Any, Union, Dict
+from typing import TypeAlias, List, Any, Union, Dict, Optional
 import uuid
 
 # Custom type definitions

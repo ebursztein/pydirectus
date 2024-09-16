@@ -40,6 +40,67 @@ class Session():
         # parse response and returns it
         return self._make_response(url, duration, response)
 
+    def post(self, endpoint: str, data: dict) -> APIResponse:
+        "POST request"
+
+        # build URL and headers
+        url = self._make_url(endpoint)
+        headers = self._make_headers()
+
+        # Make request
+        start = time()
+        response = httpx.post(url, headers=headers, json=data)
+        duration = max(int(time() - start), 1)
+
+        return self._make_response(url, duration, response)
+
+    def patch(self, endpoint: str, data: dict) -> APIResponse:
+        "PATCH request"
+
+        # build URL and headers
+        url = self._make_url(endpoint)
+        headers = self._make_headers()
+
+        # Make request
+        start = time()
+        response = httpx.patch(url, headers=headers, json=data)
+        duration = max(int(time() - start), 1)
+
+        return self._make_response(url, duration, response)
+
+    def delete(self, endpoint: str, data: dict) -> APIResponse:
+        "DELETE request"
+
+        # build URL and headers
+        url = self._make_url(endpoint)
+        headers = self._make_headers()
+
+        # Make request
+        start = time()
+        # have to do custom to pass payload to the DELETE request...
+        with httpx.Client() as client:
+            response = client.request(method="DELETE", url=url,
+                                      headers=headers, json=data)
+        duration = max(int(time() - start), 1)
+
+        return self._make_response(url, duration, response)
+
+    def search(self, endpoint: str, data: dict) -> APIResponse:
+        "Search request"
+
+        # build URL and headers
+        url = self._make_url(endpoint)
+        headers = self._make_headers()
+        # Make request
+        start = time()
+        with httpx.Client() as client:
+            response = client.request(method="SEARCH", url=url,
+                                      headers=headers, json=data)
+        duration = max(int(time() - start), 1)
+
+        return self._make_response(url, duration, response)
+
+
     def ping(self) -> int:
         "Check if the API is reachable"
         path = "server/health"
@@ -74,14 +135,19 @@ class Session():
     def _make_response(self, url: str, duration: int, response: httpx.Response) -> APIResponse:
         "Build and return response"
 
-        if response.status_code != 200:
+        # https://www.restack.io/docs/directus-knowledge-directus-status-code-reference
+        if response.status_code not in [200, 201, 204]:
             logging.error(f"{url}: error {response.status_code}: {response.text}")
             return APIResponse(ok=False,
                             error_message=response.text,
                             duration=duration,
-                        data={})
+                            data={})
 
-        data = response.json()
+        # this happen when 204 (e.g. delete)
+        if not response.content:
+            data = {}
+        else:
+            data = response.json()
         data = data['data'] if 'data' in data else data
         logging.debug(f"{url}: success {len(data)} objects returned in {duration}ms")
         return APIResponse(ok=True, error_message="", duration=duration,

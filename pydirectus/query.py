@@ -2,11 +2,18 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, Union
 import json
+import logging
 from rich import print  # Import rich's print function
 from rich.panel import Panel
+from rich.layout import Layout
 from rich.syntax import Syntax
 from rich.console import Console
 from rich.table import Table
+from rich.text import Text
+
+from .field import Field
+from .session import Session
+
 
 console = Console()  # Create a Rich console object
 
@@ -256,11 +263,103 @@ class _FilterBuilderWithOperators(FilterBuilder):  # Dummy class for autocomplet
 class Query:
     """Represents a query with filters and selected fields."""
 
-    def __init__(self, collection_name: str, selected_fields: list[str]):
-        """Initializes a new Query object."""
+    def __init__(self,
+                 endpoint: str,
+                 name: str,
+                 selected_fields: list[str],
+                 all_fields: list[Field],
+                 session: Session):
+        """Creates a new query for the given collection.
+
+        Args:
+            endpoint: Directus endpoint to query.
+            name: Name of the entity e.g collection to query.
+            selected_fields: Fields that will be returned by the query.
+            all_fields: All fields in the collection used for validation.
+        """
+        # check that the selected fields exist
+        if not isinstance(selected_fields, list):
+            selected_fields = [fields]
+        if not selected_fields == ['*']:
+            for field in selected_fields:
+                # deal with nested fields
+                # ! don't call it name
+                n = field.split('.')[0].split(':')[0]
+                if n not in all_fields:
+                    raise ValueError(f"Field {field} not found in {self.endpoint} /{self.name}")
         self.root: Optional[Union[FilterBuilder, LogicalOperator]] = None
         self.selected_fields: list[str] = selected_fields
-        self.collection_name = collection_name
+        self.all_fields: list[Field] = all_fields
+        self.name = name
+        self._session = session
+
+        # ensure no trailing slash
+        self.endpoint = endpoint if not endpoint.endswith('/') else endpoint[:1]
+
+        self._sort = {}
+        self._limit = 0
+        self._page = 0
+
+
+    def fetch(self, display_results: bool = False) -> list[dict]:
+        """Fetch results from Directus.
+
+        Returns:
+            A list of dictionaries representing the fetched items.
+        """
+        # Build the request payload
+        payload = self._build_request_payload()
+
+        # Make the API request
+        if self.name:
+            response = self._session.search(f"{self.endpoint}/{self.name}", data=payload)
+        else:
+            # this happen for folders for examples
+            response = self._session.search(f"{self.endpoint}", data=payload)
+        if not response.ok:
+            logging.error(f"Error executing search for collection {self.name}: {response.data}")
+            return {}
+        if display_results:
+            self._display_results(response.data)
+
+        return response.data
+
+    def _display_results(self, results: dict) -> None:
+        # Create a Rich table and determine columns
+
+        table = Table(caption=self._explain_english())
+
+        # we respect the user order if exists otherwise we use the order from the API
+        columns = self.selected_fields if self.selected_fields != ['*'] else results[0].keys()
+
+        # Add columns and rows
+        for col in columns:
+            table.add_column(col)
+
+        for item in results:
+            table.add_row(*[str(item.get(col, '')) if item.get(col) is not None else '' for col in columns])
+
+        # Display the table
+        Console().print(table)
+
+    def limit(self, limit: int) -> 'Query':
+        """Sets the maximum number of items to return."""
+        self._limit = limit
+        return self
+
+    def page(self, page: int) -> 'Query':
+        """set the page id to return"""
+        self._page = page
+        return self
+
+    def sort(self, field: str, direction: str = "asc") -> 'Query':
+        if direction not in ["asc", "desc"]:
+            raise ValueError("Invalid sort direction. Must be 'asc' or 'desc'.")
+        if field not in self.all_fields:
+            raise ValueError(f"Field {field} not found in collection {self.collection}")
+
+        self._sort = {"field": field, "direction": direction}
+        return self
 
     def filter(self, field: str) -> '_FilterBuilderWithOperators':
         filter_builder = _FilterBuilderWithOperators(field, self)
@@ -277,9 +376,7 @@ class Query:
             self.root.add(filter_builder)
         return filter_builder
 
-    def logical_operator(
-        self, operator: Operator, *conditions: Union[FilterBuilder, "LogicalOperator"]
-    ) -> LogicalOperator:
+    def logical_operator(self, operator: Operator, *conditions: Union[FilterBuilder, "LogicalOperator"]) -> LogicalOperator:
         if self.root is None:
             self.root = LogicalOperator(operator, *conditions)
         elif isinstance(self.root, FilterBuilder):
@@ -308,22 +405,77 @@ class Query:
         """Returns the query as a JSON string."""
         return json.dumps(self.to_dict(), indent=2)
 
-    def explain(self) -> None:
-        """Prints a colorized and formatted SQL-like explanation of the query using Rich."""
+    def to_sql(self) -> str:
+        "Returns the query as a SQL-like string."
         if self.root is None:
-            console.print("[bold blue]No filter applied[/]")
-            return
+            return f"SELECT {', '.join(self.selected_fields or ['*'])}\nFROM {self.name}"
 
         select_clause = f"SELECT {', '.join(self.selected_fields or ['*'])}"
         where_clause = self._explain_filter(self.root)
 
-        sql_query = f"{select_clause}\nFROM {self.collection_name}\nWHERE {where_clause}"
+        sql = f"{select_clause}\nFROM {self.name}"
+        if where_clause:
+            sql += f"\nWHERE {where_clause}"
+        if self._sort:
+            sql += f"\nORDER BY {self._sort['field']} {self._sort['direction']}"
+        if self._limit:
+            sql += f"\nLIMIT {self._limit}"
+        return sql
 
-        syntax = Syntax(sql_query, "sql", theme="monokai", line_numbers=True)
-        console.print(Panel(syntax, title="SQL Query Explanation", expand=False))
+    def explain(self, theme: str = "monokai") -> None:
+        """Prints a colorized representation of the query"""
+        sql_query = self.to_sql()
+        json_query = json.dumps(self._build_request_payload(), indent=2)
+
+        english_explanation = self._explain_english()
+        sql_syntax = Syntax(sql_query, "sql", theme=theme, line_numbers=True)
+        json_syntax = Syntax(json_query, "json", theme=theme, line_numbers=True)
+
+        english_lines = english_explanation.count('\n') + 1
+        sql_lines = sql_query.count('\n') + 1
+        json_lines = json_query.count('\n') + 1
+        max_lines = max(sql_lines, json_lines, english_lines)
+
+        # Add some padding (e.g., 3 lines for panel borders and title)
+        panel_height = max_lines + 3
+
+        layout = Layout(name="root")
+        layout.split(
+            Layout(name="title", size=3),
+            Layout(name="main")
+        )
+
+        # title panel
+        title = Text("Query Explanation", justify="center")
+        layout["title"].update(Panel(title, height=3))
+        expand = True
+        # querie panels
+        layout["main"].split_row(
+            Panel(
+                json_syntax,
+                title="[b]Directus[/b]",
+                expand=expand,
+                height=panel_height
+            ),
+            Panel(
+                sql_syntax,
+                title="[b]SQL[/b]",
+                expand=expand,
+                height=panel_height
+            ),
+            Panel(english_explanation,
+                  title="[b]English[/b]",
+                  expand=expand,
+                  height=panel_height)
+        )
+
+        # render
+        console.print(layout)
 
     def _explain_filter(self, filter_node: Union[FilterBuilder, LogicalOperator]) -> str:
         """Recursively builds the SQL-like explanation for filters."""
+        if filter_node is None:
+            return ""
         if isinstance(filter_node, FilterBuilder):
             return self._explain_filter_builder(filter_node)
         elif isinstance(filter_node, LogicalOperator):
@@ -418,6 +570,65 @@ class Query:
             return "(" + " OR ".join(explanation) + ")"
         else:
             return "Error building SQL explanation"
+
+    def _explain_english(self) -> str:
+        """Returns a human-readable explanation of the query."""
+        explaination = "Fetching"
+
+        if self.selected_fields != ['*']:
+            flds = ', '.join(self.selected_fields)
+            explaination += f" {flds}"
+            if self._limit:
+                explaination += f" for {self._limit} items"
+        else:
+            if self._limit:
+                explaination += f" {self._limit}"
+            explaination += " items"
+
+        explaination += f" from {self.name}"
+
+        if self._page:
+            explaination += f" for page {self._page}"
+
+        if self._sort:
+            explaination += f" sorted by {self._sort['field']} {self._sort['direction']}"
+
+        where_clause = self._explain_filter(self.root)
+        if where_clause:
+            # we can probably replace with a more readable string e.g Like become contains
+            explaination += f" where {where_clause}"
+
+        explaination = explaination.replace('  ', ' ')
+        return explaination
+
+    def _build_request_payload(self) -> dict:
+        """Builds the request payload for the Directus API."""
+        payload = {}
+
+        # restrict fields if needed
+        if self.selected_fields != ['*']:
+            payload["fields"] = self.selected_fields
+
+        # limit number of items if needed
+        if self._limit:
+            payload["limit"] = self._limit
+
+        # sort if needed
+        if self._sort:
+            sort = self._sort['field']
+            if self._sort['direction'] == 'desc':
+                sort = '-' + sort
+            payload["sort"] = sort
+
+        # add filters if needed
+        filter = self.to_dict()
+        if filter:
+            payload["filter"] = filter
+
+        # payload must be enclosed in a query key
+        payload = {"query": payload}
+        return payload
+
 
 # Add methods to FilterBuilder for each operator
 for op in Operators.get_all():

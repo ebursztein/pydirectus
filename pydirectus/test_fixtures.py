@@ -38,6 +38,14 @@ class MockSession(Session):
             data=data
         )
 
+    def delete(self, endpoint: str, data: dict) -> APIResponse:
+        return APIResponse(
+            ok=True,
+            error_message="",
+            duration=1,  # mock duration
+            data=None
+        )
+
 @pytest.fixture
 def mock_session():
     return MockSession("http://example.com", "mock_token")

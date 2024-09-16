@@ -8,15 +8,15 @@ from pathlib import Path
 from rich.progress import track
 
 # list of endpoints to dump
-END_POINTS = ['collections/books',
-              'fields/books']
+END_POINTS = ['collections/books','fields/books',
+              'collections/test', 'fields/test',]
 
 
 def dump_data(endpoint):
     "write directus response to test_data folder"
     dr = Directus()
     data = dr.get_raw_endpoint(endpoint)
-    p = Path('../pydirectus/test_data') / f'{endpoint}.json'
+    p = Path('pydirectus/test_data') / f'{endpoint}.json'
     if not p.parent.exists():
         p.parent.mkdir(parents=True)
     with open(p, 'w') as f:
@@ -24,7 +24,7 @@ def dump_data(endpoint):
 
 
 dr = Directus()
-dr.session.ping()
+dr.ping()
 
 for e in track(END_POINTS, description='Dumping directus raw responses'):
     dump_data(e)
