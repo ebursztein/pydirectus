@@ -95,7 +95,6 @@ class Directus():
         folder_info = self._get_folder_info(name)
         if not folder_info:
             raise ValueError(f"Folder {name} not found")
-        print(folder_info)
         return Folder(name=folder_info['name'],
                       parent=folder_info['parent'],
                       id=folder_info['id'],
@@ -104,9 +103,6 @@ class Directus():
     def _get_folder_info(self, name: str) -> dict:
         "Get folder info using search API"
         qry = Query(endpoint='folders',
-                    name='',  # folder don't use collection
-                    selected_fields=['*'],
-                    all_fields=[],
                     session=self._session)
 
         qry.filter("name").eq(name)

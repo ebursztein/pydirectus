@@ -100,6 +100,32 @@ class Session():
 
         return self._make_response(url, duration, response)
 
+    # files management
+    def download(self, endpoint: str) -> bytes:
+        "Download a file"
+
+        # build URL and headers
+        url = self._make_url(endpoint)
+        headers = self._make_headers()
+
+        # Make request
+        response = httpx.get(url, headers=headers)
+
+        if response.status_code != 200:
+            logging.error(f"{url}: error {response.status_code}: {response.text}")
+            return b''
+        return response.content
+
+    def upload(self, endpoint: str, data: dict, files: dict) -> APIResponse:
+        "Upload a file"
+        url = self._make_url(endpoint)
+        headers = self._make_headers()
+        start = time()
+        response = httpx.post(url, headers=headers, data=data, files=files)
+        duration = max(int(time() - start), 1)
+        return self._make_response(url, duration, response)
+
+
 
     def ping(self) -> int:
         "Check if the API is reachable"
@@ -125,6 +151,10 @@ class Session():
 
     def _make_url(self, endpoint: str) -> str:
         "Build URL"
+        if endpoint.startswith("http://") or endpoint.startswith("https://"):
+            return endpoint
+        if endpoint.startswith("/"):
+            endpoint = endpoint[1:]
         return f"{self.url}/{endpoint}"
 
     def _make_headers(self, headers: dict = {}) -> dict:

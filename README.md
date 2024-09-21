@@ -44,12 +44,11 @@ Here's the table with a new column "exist" added after the "list" column:
 | collection | ✔    | ✔     | ✔   | -      | -      | -      | -      |
 | items      | ✔    | ✔     | ✔   | ✔      | ✔      | ✔      | ✔      |
 | folder     | ✔    | ✔     | ✔   | -      | -      | -      | -      |
-| file       | ✔    | -     | -   | -      | -      | -      | -      |
+| file       | ✔    | ✔     | ✔   | -      | ✔      | ✔      | ✔      |
 | settings   | -    | -     | -   | -      | -      | -      | -      |
 
 
-**notes**: `create`, `update`, `delete` support both single and bulk items transparently
-depending if you are passing a `dict` (single items) or a `list[dict]` multiples items.
+**notes**: `create`, `update`, `delete` support both single and bulk items transparently whereever possible based of if you are passing a `dict` (single items) or a `list[dict]` multiples items.
 
 ## Usage
 
@@ -154,6 +153,68 @@ clt.delete(idx)
 idxs = [3, 5]
 clt.delete(idxs)
 ```
+
+
+### Folders and Files
+
+#### Get a folder
+
+```python
+fld = dr.folder(name)
+```
+
+#### List files
+
+```python
+fld = dr.folder(name)
+files = fld.files()  # return the list[Files] that the folder hold
+filenames = fld.filenames()  # return the list[str] of the file.filename_download
+fld.display_files(limit=10)  # terminal pretty print of the existing files
+```
+
+
+### Files
+
+#### get fileinfo
+
+```python
+fld.fileinfo('test.webp')
+```
+
+#### exist
+
+```python
+fld.exist('test.webp')
+```
+
+#### Download a file
+
+```python
+fld.download('test.webp', 'tmp/',
+              ondisk_filename='test.jpeg',
+              width=200, format='jpeg')
+```
+
+Download support images operations and the ability to rename the file on disk via
+`ondisk_filename`.
+
+Note: `ondisk_filename` is required when doing image transformation as the
+downloaded image is not the original one.
+
+#### Upload
+Upload is basically the same as download
+
+```python
+fld.upload('tmp/test.jpeg', title='uploaded test')
+```
+
+#### Delete
+
+```python
+fld.delete('filemane')
+```
+
+
 
 
 ## Dev

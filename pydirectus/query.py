@@ -264,11 +264,11 @@ class Query:
     """Represents a query with filters and selected fields."""
 
     def __init__(self,
+                 session: Session,
                  endpoint: str,
-                 name: str,
-                 selected_fields: list[str],
-                 all_fields: list[Field],
-                 session: Session):
+                 name: str = '',
+                 selected_fields: list[str] = ['*'],
+                 all_fields: list[Field] = []) -> None:
         """Creates a new query for the given collection.
 
         Args:
