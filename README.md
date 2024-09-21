@@ -35,8 +35,6 @@ if the type of the data passed is correct to help you insert data.
 Here are the [Directus API](https://docs.directus.io/reference/)
 operations currently supported. Pull requests welcomes.
 
-Here's the table with a new column "exist" added after the "list" column:
-
 | object     | list | exist | get | search | insert | update | delete |
 |:-----------|------|-------|-----|--------|--------|--------|--------|
 | collection | ✔    | ✔     | ✔   | -      | -      | -      | -      |
