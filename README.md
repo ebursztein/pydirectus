@@ -6,7 +6,7 @@
 ### Full ORM support for database query
 
 `Pydirectus` allows you to quickly build search query in a pythonic ORM way.
-The ORM supporting editors autocompletion and advance typing
+The ORM supporting editors autocompletion and advanced typing.
 
 ```python
 qry = clt.query(['title', 'url'])
@@ -17,11 +17,9 @@ res = qry.fetch()
 
 ### Query explainer and debuger
 
-The `Query.explain()` methods allows you visualize the query sent to directus
-in Directus language, SQL and English for quickly debugging and understanding
-query.
+The `Query.explain()` methods allows you to visualize the query sent to directus in Directus language, SQL and English for quickly debugging and understanding your query.
 
-```python
+```pythons
 qry.explain()
 ```
 ![pydirectus explainer in action](https://raw.githubusercontent.com/ebursztein/pydirectus/refs/heads/main/medias/pydirectus_explainer.jpg)
