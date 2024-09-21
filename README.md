@@ -48,6 +48,17 @@ Here's the table with a new column "exist" added after the "list" column:
 
 **notes**: `create`, `update`, `delete` support both single and bulk items transparently whereever possible based of if you are passing a `dict` (single items) or a `list[dict]` multiples items.
 
+## Installation
+
+pydirectus is installed like any other packages as
+
+```python
+pip install pydirectus-sdk
+```
+
+For dev setup see the bottom of the README.md
+
+
 ## Usage
 
 ### Connection
