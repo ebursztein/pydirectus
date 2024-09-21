@@ -1,5 +1,4 @@
-# pydirectus
-Python SDK for Directus
+# pydirectus: Python SDK for Directus
 
 
 ## Higlights
@@ -157,8 +156,15 @@ clt.delete(idxs)
 ```
 
 
+## Dev
 
-## Testing
+### Setup
+
+```
+uv venv
+source .venv/bin/activate  # and/or in vscode select the venv
+uv pip install -e .
+```
 
 
 ### Adding test data
