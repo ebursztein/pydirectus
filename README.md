@@ -24,7 +24,7 @@ query.
 ```python
 qry.explain()
 ```
-![https://raw.githubusercontent.com/ebursztein/pydirectus/refs/heads/main/medias/pydirectus_explainer.jpg](Explainer)
+![pydirectus explainer in action](https://raw.githubusercontent.com/ebursztein/pydirectus/refs/heads/main/medias/pydirectus_explainer.jpg)
 
 
 ### Typechecking
