@@ -47,7 +47,11 @@ class Directus():
 
     def ping(self) -> bool:
         "Check if the API is reachable"
-        return self._session.ping()
+        duration = self._session.ping()
+        if duration:
+            print(f"Directus reachable - rtt {duration} ms")
+            return True
+        return False
 
     def collection_names(self, list_system_collections=False) -> list[str]:
         "Get all collections names"
@@ -59,6 +63,10 @@ class Directus():
                 continue
             names.append(cname)
         return names
+
+    def display_collections(self):
+        "Display all collections names and their meta data"
+        raise NotImplementedError("This method is not implemented yet")
 
     def collection_exist(self, name: str) -> bool:
         "Check if a collection exists"
@@ -112,3 +120,10 @@ class Directus():
             return {}
         else:
             return resp[0]
+
+
+    # translations
+    def display_translations(self, limit: int = 10):
+        "Display the translation"
+        translations = self._session.get("translations")
+        print(translations.data)
