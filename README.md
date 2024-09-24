@@ -39,7 +39,7 @@ operations currently supported. Pull requests welcomes.
 |:-----------|------|-------|-----|--------|--------|--------|--------|
 | collection | ✔    | ✔     | ✔   | -      | -      | -      | -      |
 | items      | ✔    | ✔     | ✔   | ✔      | ✔      | ✔      | ✔      |
-| folder     | ✔    | ✔     | ✔   | -      | -      | -      | -      |
+| folder     | ✔    | ✔     | ✔   | -      | ✔      | -      | -      |
 | file       | ✔    | ✔     | ✔   | -      | ✔      | ✔      | ✔      |
 | settings   | -    | -     | -   | -      | -      | -      | -      |
 
@@ -167,7 +167,9 @@ clt.delete(idxs)
 #### Get a folder
 
 ```python
-fld = dr.folder(name)
+fld = dr.folder(name='folder-name')
+# or by id/uuid (The one in the url)
+fld = dr.folder(id='folder-uuid')
 ```
 
 #### List files
@@ -177,6 +179,22 @@ fld = dr.folder(name)
 files = fld.files()  # return the list[Files] that the folder hold
 filenames = fld.filenames()  # return the list[str] of the file.filename_download
 fld.display_files(limit=10)  # terminal pretty print of the existing files
+```
+
+#### Create folder
+
+##### Root folder
+
+Create a folder at the root of the directus instance:
+```python
+fld = dr.create_folder('name')
+```
+
+#### Subfolder
+Create a subfolder in the specified folder:
+```python
+parent = dr.folder(name='parent-folder')
+subfolder = parent.create_folder('sub-folder')
 ```
 
 
@@ -228,9 +246,16 @@ fld.delete('filemane')
 
 ### Setup
 
-```
+```bash
 uv venv
 source .venv/bin/activate  # and/or in vscode select the venv
+uv pip install -e .
+```
+
+### Refresh
+when bumping version don't forget to refresh uv
+
+```bash
 uv pip install -e .
 ```
 

@@ -1,10 +1,12 @@
 import os
 from dotenv import load_dotenv
 from typing import Any
+import logging
 from .query import Query
 from .collection import Collection
 from .folder import Folder
 from .session import Session
+
 
 class Directus():
     "Directus API main class - mimick Directus structure"
@@ -148,6 +150,19 @@ class Directus():
         else:
             return resp[0]
 
+
+    def create_root_folder(self, name: str) -> Folder:
+        """Create a root folder - Use Folder().create_subfolder for creating subfolders"""
+        folder = {"name": name}
+        resp = self._session.post("folders", data=folder)
+        if resp.ok:
+            return Folder(name=resp.data['name'],
+                      parent=resp.data['parent'],
+                      id=resp.data['id'],
+                      session=self._session)
+        else:
+            logging.error(f"Failed to create folder {name}: {resp.error_message}")
+            return None
 
     # translations
     def display_translations(self, limit: int = 10):

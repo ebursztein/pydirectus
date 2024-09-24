@@ -32,6 +32,19 @@ class Folder():
     def __repr__(self) -> str:
         return f"<Folder {self.name}>"
 
+    def create_folder(self, name: str) -> 'Folder':
+        """Create a subfolder in the current folder."""
+        folder = {"name": name, "parent": self.id}
+        resp = self._session.post("folders", data=folder)
+        if resp.ok:
+            return Folder(name=resp.data['name'],
+                      parent=self.id,
+                      id=resp.data['id'],
+                      session=self._session)
+        else:
+            logging.error(f"Failed to create folder {name}: {resp.error_message}")
+            return None
+
 
     def display_files(self, limit: int = 10) -> None:
         "Display files in the folder"

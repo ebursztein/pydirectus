@@ -9,6 +9,7 @@ All notable changes to `pydirectus` will be documented in this file.
  - Session retry support (3 attempts)
  - httpx configurable timeout.
  - get folder by UUID useful when many folders have the same name
+ - Folder/subfolder creation
 
 ### Fixed
  - Uuid field typing
