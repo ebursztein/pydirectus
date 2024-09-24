@@ -1,12 +1,12 @@
 from pathlib import Path
 from typing import Optional, Union
 from datetime import datetime, timezone
-
+from .typing import Uuid
 from .session import Session
 
 class File:
     "Directus file metadata and  method"
-    id: str  # Primary key of the file (UUID)
+    id: Uuid  # Primary key of the file (UUID)
     storage: str  # Storage adapter used for the file (e.g., "local")
     filename_disk: str  # Name of the file as saved on the storage adapter
     filename_download: str  # Preferred filename when the file is downloaded

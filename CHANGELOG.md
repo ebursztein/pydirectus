@@ -9,6 +9,9 @@ All notable changes to `pydirectus` will be documented in this file.
  - Session retry support (3 attempts)
  - httpx configurable timeout.
 
+### Fixed
+ - Uuid field typing
+
 ## [0.2.0] - 2024-09-21
 
 ### Added

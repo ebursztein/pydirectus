@@ -14,7 +14,6 @@ def test_make_response_success(api_instance):
     mock_response = Mock(spec=httpx.Response)
     mock_response.status_code = 200
     mock_response.json.return_value = {"data": [{"id": 1, "name": "Test"}]}
-
     result = api_instance._make_response(url, duration, mock_response)
 
     assert isinstance(result, APIResponse)
