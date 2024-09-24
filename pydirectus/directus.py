@@ -90,17 +90,40 @@ class Directus():
             names.append(r['name'])
         return names
 
-    def folder_exist(self, name: str) -> bool:
-        "Check if a folder exists"
+    def folder_exist(self, name: str = '', uuid: str = '') -> bool:
+        "Check if a folder exists by name or UUID"
+
+        if not name and not uuid:
+            raise ValueError("Either name or UUID must be provided")
+        if name:
+            property = 'name'
+            value = name
+        else:
+            property = 'id'
+            value = uuid
+
         # folder don't use endpoint so passing ''
-        folder = self._get_folder_info(name)
+        folder = self._get_folder_info(property=property, value=value)
+
+
         if folder:
             return True
         return False
 
-    def folder(self, name: str) -> Folder:
+    def folder(self, name: str = '', uuid: str = '') -> Folder:
         "Get a folder"
-        folder_info = self._get_folder_info(name)
+        if not name and not uuid:
+            raise ValueError("Either name or UUID must be provided")
+        if name:
+            property = 'name'
+            value = name
+        else:
+            property = 'id'
+            value = uuid
+
+        # folder don't use endpoint so passing ''
+        folder_info = self._get_folder_info(property=property, value=value)
+
         if not folder_info:
             raise ValueError(f"Folder {name} not found")
         return Folder(name=folder_info['name'],
@@ -108,12 +131,16 @@ class Directus():
                       id=folder_info['id'],
                       session=self._session)
 
-    def _get_folder_info(self, name: str) -> dict:
-        "Get folder info using search API"
+    def _get_folder_info(self, property:str, value: str) -> dict:
+        """Get folder info using search API
+        Args:
+            property (str): The property to search by (name, uuid)
+            value (str): The value of the property to search for
+        """
         qry = Query(endpoint='folders',
                     session=self._session)
 
-        qry.filter("name").eq(name)
+        qry.filter(property).eq(value)
         qry.limit(1)
         resp = qry.fetch()
         if len(resp) == 0:
