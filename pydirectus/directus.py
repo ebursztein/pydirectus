@@ -6,7 +6,7 @@ from .query import Query
 from .collection import Collection
 from .folder import Folder
 from .session import Session
-
+from rich import print
 
 class Directus():
     "Directus API main class - mimick Directus structure"
@@ -51,8 +51,19 @@ class Directus():
         "Check if the API is reachable"
         duration = self._session.ping()
         if duration:
-            print(f"Directus reachable - rtt {duration} ms")
+            if duration < 100:
+                color = "blue"
+            elif duration < 300:
+                color = "green"
+            elif duration < 500:
+                color = "yellow"
+            else:
+                color = "red"
+            print(f"Directus reachable - [{color}] RTT {duration} ms")
+            logging.info(f"Directus reachable - RTT {duration} ms")
             return True
+        print("[red]Directus not reachable")
+        logging.error("Directus not reachable")
         return False
 
     def collection_names(self, list_system_collections=False) -> list[str]:

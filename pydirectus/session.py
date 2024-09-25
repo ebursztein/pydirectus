@@ -40,7 +40,7 @@ class Session():
         # Make request
         start = time()
         response = self.client.get(url, headers=headers)
-        duration = max(int(time() - start), 1) # avoid 0ms response
+        duration = self._duration(start)
 
         # retry logic
         if not response.is_success:
@@ -60,7 +60,7 @@ class Session():
         # Make request
         start = time()
         response = self.client.post(url, headers=headers, json=data)
-        duration = max(int(time() - start), 1)
+        duration = self._duration(start)
 
         # retry logic
         if not response.is_success:
@@ -80,7 +80,7 @@ class Session():
         # Make request
         start = time()
         response = self.client.patch(url, headers=headers, json=data)
-        duration = max(int(time() - start), 1)
+        duration = self._duration(start)
 
         # retry logic
         if not response.is_success:
@@ -102,7 +102,7 @@ class Session():
         # have to do custom to pass payload to the DELETE request...
         response = self.client.request(method="DELETE", url=url,
                                        headers=headers, json=data)
-        duration = max(int(time() - start), 1)
+        duration = self._duration(start)
 
         # retry logic
         if not response.is_success:
@@ -122,7 +122,7 @@ class Session():
         start = time()
         response = self.client.request(method="SEARCH", url=url,
                                        headers=headers, json=data)
-        duration = max(int(time() - start), 1)
+        duration = self._duration(start)
 
         # retry logic
         if not response.is_success:
@@ -160,7 +160,7 @@ class Session():
         headers = self._make_headers()
         start = time()
         response = httpx.post(url, headers=headers, data=data, files=files)
-        duration = max(int(time() - start), 1)
+        duration = self._duration(start)
 
         # retry logic
         if not response.is_success:
@@ -183,8 +183,7 @@ class Session():
         except httpx.RequestError as e:
             logging.error(f"Server error:{url}:{e}")
             return 0
-
-        duration = max(int(time() - start), 1) # avoid 0ms response
+        duration = self._duration(start)
 
         if response.status_code != 200:
             logging.error(f"Server error:{url}:{response.status_code}: {response.text}")
@@ -192,6 +191,11 @@ class Session():
 
         logging.info(f"Server up {duration}ms")
         return duration
+
+    def _duration(self, start: float) -> int:
+        "Calculate duration in ms"
+        return max(int((time() - start) * 1000), 1)
+
 
     def _make_url(self, endpoint: str) -> str:
         "Build URL"
