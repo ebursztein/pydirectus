@@ -279,7 +279,7 @@ class Query:
         """
         # check that the selected fields exist
         if not isinstance(selected_fields, list):
-            selected_fields = [fields]
+            selected_fields = [selected_fields]
         if not selected_fields == ['*']:
             for field in selected_fields:
                 # deal with nested fields

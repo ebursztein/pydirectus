@@ -10,10 +10,13 @@ All notable changes to `pydirectus` will be documented in this file.
  - httpx configurable timeout.
  - get folder by UUID useful when many folders have the same name
  - Folder/subfolder creation
+ - main objects exports
+ - added `collection.get_all()`
 
 ### Fixed
  - Uuid field typing
-
+ - operation duration is now properly in ms
+ - fixed `query()` when requesting all fields
 
 ## [0.2.0] - 2024-09-21
 

@@ -145,6 +145,11 @@ class Collection():
             return None
         return resp.data
 
+    def get_all(self) -> list[dict[str, Field]]:
+        "get all the collection records"
+        return self.query(['*']).fetch()
+
+
     def delete(self, ids: int | list[int]) -> None:
         """Delete record(s) in the collection.
 
