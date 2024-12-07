@@ -2,6 +2,15 @@
 
 All notable changes to `pydirectus` will be documented in this file.
 
+## [0.3.x] - 2024-12-07
+
+### Added
+
+ - Allow to check if properly authenticated `dr.is_authenticated()`
+
+### Changed
+
+ - `ping()` now return the round trip time instead of a boolean
 
 ## [0.2.x] - 2024-09-22
 

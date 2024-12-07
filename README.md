@@ -78,7 +78,8 @@ Then you can test all is working as intended as:
 from pydirectus import Directus
 dr = Directus()  # with ENV vars or .env
 # dr = Directus(url="your_base__url", token="your_token")  # if you want to explictly pass them
-dr.session.ping()  # check we can connect to directus
+dr.ping()  # check we can connect to directus
+dr.is_authenticated()  # check if you are properly authenticated
 ```
 
 ### Colllections
@@ -100,7 +101,23 @@ clt.get_field() # return a Field() object
 clt.field_exist()  # retrun if exist
 ```
 
-### Items
+### Records
+
+#### Get
+
+##### single item
+
+```python
+idx = 1
+clt.get(idx)
+```
+
+##### all items
+
+```python
+clt.get_all()
+```
+
 #### Search
 
 pydirectus have a WIP mini ORM that allows you to construct your search query

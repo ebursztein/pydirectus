@@ -47,8 +47,12 @@ class Directus():
         if not self._session.ping():
             raise ValueError(f"API not reachable - check URL ({url}) and API key {token[:5]}...")
 
-    def ping(self) -> bool:
-        "Check if the API is reachable"
+    def ping(self) -> int:
+        """Check if the API is reachable
+
+        Returns:
+            int: The round trip time in milliseconds
+        """
         duration = self._session.ping()
         if duration:
             if duration < 100:
@@ -61,10 +65,26 @@ class Directus():
                 color = "red"
             print(f"Directus reachable - [{color}] RTT {duration} ms")
             logging.info(f"Directus reachable - RTT {duration} ms")
-            return True
+            return duration
         print("[red]Directus not reachable")
         logging.error("Directus not reachable")
-        return False
+        return 0
+
+    def is_authenticated(self) -> bool:
+        "Check if the API is authenticated"
+        health = self._session.get("server/health")
+        if not health.ok:
+            print("[red]Directus not reachable")
+            logging.error("Directus not reachable")
+            return False
+
+        if not health.ok or 'releaseId' not in health.data:
+            print("[red]Not authenticated")
+            logging.error("Not authenticated")
+            return False
+
+        print("[green]Authenticated")
+        return True
 
     def collection_names(self, list_system_collections=False) -> list[str]:
         "Get all collections names"
