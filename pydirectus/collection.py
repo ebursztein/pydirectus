@@ -190,6 +190,10 @@ class Collection():
         if not resp.ok:
             logging.error(f"Error inserting items: {resp.error_message}")
             return None
+
+        # unbox single item
+        if resp.data and len(resp.data) == 1:
+            return resp.data[0]
         return resp.data
 
     def update(self, ids: int | list[int], items: dict[str, Any]) -> dict:

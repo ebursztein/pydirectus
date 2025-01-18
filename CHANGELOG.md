@@ -2,6 +2,13 @@
 
 All notable changes to `pydirectus` will be documented in this file.
 
+## [0.3.1]
+
+### Fixed
+
+- `collection.insert()` now properly return a `dict` instead of a `list[dict]`
+if there is a single item inserted.
+
 ## [0.3.x] - 2024-12-07
 
 ### Added
@@ -11,6 +18,7 @@ All notable changes to `pydirectus` will be documented in this file.
 ### Changed
 
  - `ping()` now return the round trip time instead of a boolean
+
 
 ## [0.2.x] - 2024-09-22
 
